@@ -1,3 +1,5 @@
+# Use detections from ocrapp as the base annotations, enabling quick labelling for new data
+
 import os
 import numpy as np
 import cv2
@@ -71,7 +73,7 @@ def add_quad_point(params):
 
 cv2.namedWindow('image')
 
-card_dir = "/home/jeff/SSD_2/vis/"
+card_dir = "/home/jeff/SSD_2/hardneg_allaugs_lesspower_newset_2/"
 with open(os.path.join(card_dir, 'results.json'), 'r') as f:
     results = json.load(f)
 
@@ -116,6 +118,8 @@ for (i, (file_path, detections)) in enumerate(results.items()):
                 json_combined = json.dumps(combined)
                 f.write(f"{os.path.basename(file_path)}\t{json_combined}\n")
             output.clear()
+            break
+        elif key == 13:
             break
 
 cv2.destroyAllWindows()

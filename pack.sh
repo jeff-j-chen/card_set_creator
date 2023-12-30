@@ -1,0 +1,1 @@
+tar -czf pack.tar.gz -C ./ nitin_crops nitin_fullset export

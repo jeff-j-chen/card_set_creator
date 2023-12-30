@@ -1,3 +1,6 @@
+# Used to mark detections onto images for manual verification, to make sure they are actually correct
+
+
 import cv2
 import json
 import numpy as np
