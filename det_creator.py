@@ -1,10 +1,14 @@
 # Use detections from ocrapp as the base annotations, enabling quick labelling for new data
+LOAD_FROM_RESULTS = True
+CHECKING_MODE = False
 
 import os
-import numpy as np
 import cv2
 import json
 import time
+import numpy as np
+from PIL import Image
+from utility import draw_ocr_box_txt
 
 def draw_rectangles(event, x, y, flags, params):
     # check if the point is on the left or right half of the image
@@ -21,8 +25,11 @@ def draw_rectangles(event, x, y, flags, params):
             else:
                 transc_add = add_rect(params)
             cv2.imshow('image', params['image'])
-            cv2.waitKey(100)
+            cv2.waitKey(10)
             if len(transc_add) > 0:
+                cv2.waitKey(10)
+                time.sleep(0.1)
+                cv2.imshow('image', params['image'])
                 transc = input('Transcription: ')
                 if transc != '' and transc != ' ':
                     mark = {
@@ -30,10 +37,19 @@ def draw_rectangles(event, x, y, flags, params):
                         'points': list(transc_add),
                     }
                     output.append(mark)
-        elif event == cv2.EVENT_MOUSEMOVE:
+                    # annotate the image with the text at the given locatin
+                    # use the size of the drawn bounding box to determine the location and size of the text
+                    mid_center = (transc_add[0][0], (transc_add[0][1] + transc_add[2][1])//2 + 10)
+                    font_size = 0.5
+                    params['og_img'] = cv2.putText(params['image'], transc, mid_center, cv2.FONT_HERSHEY_SIMPLEX, font_size, (81, 219, 66), 1, cv2.LINE_AA)
+                    cv2.waitKey(10)
+                    time.sleep(0.1)
+                    cv2.imshow('image', params['og_img'])
+                    
+        elif event == cv2.EVENT_MOUSEMOVE: 
             if params['drawing']:
                 img_copy = params['og_img'].copy()
-                params['image'] = cv2.rectangle(img_copy, params['start_pt'], (x, y), (134, 199, 56), 3)
+                params['image'] = cv2.rectangle(img_copy, params['start_pt'], (x, y), (134, 199, 56), 2)
                 cv2.imshow('image', params['image'])
     # if click is on the right half, the user wants to discard originally detected bounding boxes
     else:
@@ -53,7 +69,7 @@ def discard_det_at(x, y, params):
 def add_rect(params):
     x1, y1 = min(params['start_pt'][0], params['end_pt'][0]), min(params['start_pt'][1], params['end_pt'][1])
     x2, y2 = max(params['start_pt'][0], params['end_pt'][0]), max(params['start_pt'][1], params['end_pt'][1])
-    cv2.rectangle(params['image'], params['start_pt'], params['end_pt'], (81, 219, 66), 3)
+    cv2.rectangle(params['image'], params['start_pt'], params['end_pt'], (81, 219, 66), 2)
     params['og_img'] = params['image'].copy()
     return [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
 
@@ -73,23 +89,78 @@ def add_quad_point(params):
 
 cv2.namedWindow('image')
 
-card_dir = "/home/jeff/SSD_2/hardneg_allaugs_lesspower_newset_2/"
-with open(os.path.join(card_dir, 'results.json'), 'r') as f:
-    results = json.load(f)
+
+if LOAD_FROM_RESULTS:
+    card_dir = "/home/jeff/SSD_2/feb7_fullscan/"
+    with open(os.path.join(card_dir, 'results.json'), 'r') as f:
+        results = json.load(f)
+else:
+    card_dir = "/home/jeff/SSD_2/Downloads/all_cards/Baseball_data"
+    results = {}
+    read = 'dets_fixed.txt' if not CHECKING_MODE else 'dets_new.txt'
+    print(read)
+    with open(read, 'r') as f:
+        for line in f:
+            filename, json_part = line.split('\t', 1)
+            results[filename] = json.loads(json_part)
 
 output = []
 if not os.path.exists('last_det.txt'): open('last_det.txt', 'w').write('0')
-with open('last_det.txt', 'r') as f: last = int(f.read())
+with open('last_det.txt', 'r') as f: 
+    last = int(f.read())
+    if CHECKING_MODE: last -= 2
 
-for (i, (file_path, detections)) in enumerate(results.items()):
-    if i < last: continue
-    with open('last_det.txt', 'w') as f: f.write(str(i))
-    img = cv2.imread(os.path.join(card_dir, file_path))
+seen_files = []
+with open("dets.txt", 'r') as f:
+    for line in f:
+        filename, json_part = line.split('\t', 1)
+        seen_files.append(filename)
+
+for (i, (file_path, dts)) in enumerate(results.items()):
+    if i < last: continue #739
+    if file_path in seen_files: 
+        print(f"skipping file {file_path} at index {i}")
+        continue   
+    if not CHECKING_MODE:
+        with open('last_det.txt', 'w') as f: f.write(str(i))
+    joined_path = os.path.join(card_dir, file_path)
+    if not os.path.isfile(joined_path):
+        print(f"File {joined_path} does not exist")
+        continue
+
+    img = cv2.imread(joined_path)
     s = max(img.shape[1]/1600, img.shape[0]/900)
     img = cv2.resize(img, (int(img.shape[1]//s), int(img.shape[0]//s)))
-    img_flipped = np.concatenate((img[:, img.shape[1]//2:], img[:, :img.shape[1]//2]), axis=1)
-    for detection in detections:
-        detection['points'] = [(int(x//s), int(y//s)) for (x, y) in detection['points']]
+    # for detection in dts:
+    #     detection['points'] = [(int(x//s//s//0.9), int(y//s//s//0.9)) for (x, y) in detection['points']]
+    
+    if LOAD_FROM_RESULTS:
+        for detection in dts:
+            detection['points'] = [(int(x//s), int(y//s)) for (x, y) in detection['points']]
+        # take the left of the image, draw bounding boxes, then stitch it horizontally with the right side of the original
+        left = img[:, :img.shape[1]//2]
+        right = img[:, img.shape[1]//2:]
+        left = draw_ocr_box_txt(
+            image=Image.fromarray(cv2.cvtColor(left, cv2.COLOR_BGR2RGB)),
+            boxes=[det['points'] for det in dts],
+            txts=[det['transcription'] for det in dts],
+            scores=[0 for _ in dts],
+            drop_score=0,
+            font_path="/home/jeff/SSD_2/card_set_creator/simfang.ttf",
+        )
+        img = cv2.cvtColor(np.array(left), cv2.COLOR_RGB2BGR)
+    else:
+        img = draw_ocr_box_txt(
+            image=Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)),
+            boxes=[det['points'] for det in dts],
+            txts=[det['transcription'] for det in dts],
+            scores=[0 for _ in dts],
+            drop_score=0,
+            font_path="/home/jeff/SSD_2/card_set_creator/simfang.ttf",
+        )
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    
+
     cv2.imshow('image', img)
     cv2.setMouseCallback(
         'image',
@@ -101,7 +172,7 @@ for (i, (file_path, detections)) in enumerate(results.items()):
             'end_pt': None,
             'drawing': False,
             'filename': os.path.basename(file_path),
-            'detections': detections,
+            'detections': dts,
             'quad_points': [],
         }
     )
@@ -109,17 +180,31 @@ for (i, (file_path, detections)) in enumerate(results.items()):
         key = cv2.waitKey(1)
         if key == ord(' '):
             # combined = output
-            combined = output + detections
+            combined = output + dts
             combined = [d for d in combined if d['transcription'] != '']
             for d in combined:
                 for i in range(len(d['points'])):
                     d['points'][i] = [int(x) for x in d['points'][i]]
-            with open('dets.txt', 'a') as f:
+            mod = '_new' if not LOAD_FROM_RESULTS else ''
+            mod2 = '_double' if CHECKING_MODE else ''
+            with open(f"dets{mod}{mod2}.txt", 'a') as f:
                 json_combined = json.dumps(combined)
                 f.write(f"{os.path.basename(file_path)}\t{json_combined}\n")
             output.clear()
             break
-        elif key == 13:
+        # if the key is x, simply break and move on
+        elif key == ord('x'):
             break
+        # if the key is z, write the current file name to good.txt, and draw a green rectangle around the image
+        elif key == ord('z'):
+            # make sure that the file name is not already in good.txt
+            with open('good.txt', 'r') as f:
+                already_marked = f.read().split('\n')
+            if file_path not in already_marked:
+                with open('good.txt', 'a') as f:
+                    f.write(file_path + '\n')
+                print(f"Marked {file_path} as good")
+            img = cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (81, 219, 66), 10)
+            cv2.imshow('image', img)
 
 cv2.destroyAllWindows()

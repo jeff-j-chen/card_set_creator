@@ -9,7 +9,7 @@ import cv2
 import json
 import math
 
-card_dir = "/home/jeff/SSD_2/vis/"
+card_dir = "/home/jeff/SSD_2/Downloads/all_cards/Baseball_data"
 all_dets = {}
 with open('dets.txt', 'r') as f:
     for line in f:
@@ -25,10 +25,10 @@ for (file_path, detections) in all_dets.items():
     # if so, subtract half the image width from that set of points
     # and print that you are doing so
     # use numpy to speed things up
-    for detection in detections:
-        if any(np.array(detection['points'])[:, 0] > img.shape[1]//2):
-            print(f"Fixing {file_path}")
-            detection['points'] = [(x - img.shape[1]//2, y) for (x, y) in detection['points']]
+    # for detection in detections:
+    #     if any(np.array(detection['points'])[:, 0] > img.shape[1]//2):
+    #         print(f"Fixing {file_path}")
+    #         detection['points'] = [(x - img.shape[1]//2, y) for (x, y) in detection['points']]
 
     for i, detection in enumerate(detections):
         # Get the points
@@ -49,7 +49,7 @@ for (file_path, detections) in all_dets.items():
 
 
     # save the left half of the image to the folder nitin_fullset
-    cv2.imwrite(f"nitin_fullset/{file_path}", img[:, :img.shape[1]//2])
+    cv2.imwrite(f"nitin_fullset/{file_path}", img)
 
 # recreate dets.txt with the new data
 with open('dets_fixed.txt', 'w') as f:
