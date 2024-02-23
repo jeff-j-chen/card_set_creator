@@ -1299,7 +1299,6 @@ nitin_crops/eb-155654123571_cropped_crop1.jpg	Ken Griffey Jr.OF
 nitin_crops/eb-155654123571_cropped_crop2.jpg	RATED
 nitin_crops/eb-155654123571_cropped_crop3.jpg	S
 nitin_crops/eb-155654123571_cropped_crop4.jpg	ROOKIE
-nitin_crops/eb-155654123571_cropped_crop5.jpg	68SONOE
 nitin_crops/eb-155654131476_cropped_crop0.jpg	Franklin
 nitin_crops/eb-155654131476_cropped_crop1.jpg	M's
 nitin_crops/eb-155654131476_cropped_crop2.jpg	KEN GRIFFEY JR.

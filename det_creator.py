@@ -1,6 +1,10 @@
 # Use detections from ocrapp as the base annotations, enabling quick labelling for new data
 LOAD_FROM_RESULTS = True
 CHECKING_MODE = False
+CREATING_SLIDES = False
+HN_MODE = True
+hn_ocr_path = "/home/jeff/SSD_2/1000_sample_ocr/gpt_results.json"
+hn_gpt4_path = "/home/jeff/SSD_2/1000_sample_gpt4/results.json"
 
 import os
 import cv2
@@ -91,14 +95,13 @@ cv2.namedWindow('image')
 
 
 if LOAD_FROM_RESULTS:
-    card_dir = "/home/jeff/SSD_2/feb7_fullscan/"
+    card_dir = "/home/jeff/SSD_2/1000_sample_ocr"
     with open(os.path.join(card_dir, 'results.json'), 'r') as f:
         results = json.load(f)
 else:
     card_dir = "/home/jeff/SSD_2/Downloads/all_cards/Baseball_data"
     results = {}
     read = 'dets_fixed.txt' if not CHECKING_MODE else 'dets_new.txt'
-    print(read)
     with open(read, 'r') as f:
         for line in f:
             filename, json_part = line.split('\t', 1)
@@ -106,7 +109,7 @@ else:
 
 output = []
 if not os.path.exists('last_det.txt'): open('last_det.txt', 'w').write('0')
-with open('last_det.txt', 'r') as f: 
+with open(f"last{'_hn' if HN_MODE else '_det'}.txt", 'r') as f: 
     last = int(f.read())
     if CHECKING_MODE: last -= 2
 
@@ -116,13 +119,37 @@ with open("dets.txt", 'r') as f:
         filename, json_part = line.split('\t', 1)
         seen_files.append(filename)
 
+# load the json files from the HN ocr and gpt4 results
+discrep_dict = {}
+if HN_MODE:
+    with open(hn_ocr_path, 'r') as f:
+        hn_ocr = json.load(f)
+    with open(hn_gpt4_path, 'r') as f:
+        hn_gpt4 = json.load(f)
+        for file in hn_gpt4.keys():
+            for key in hn_gpt4[file].keys():
+                if type(hn_gpt4[file][key]) == list and len(hn_gpt4[file][key]) > 1:
+                    hn_gpt4[file][key] = hn_gpt4[file][key][0]
+    
+    for file in hn_ocr.keys():
+        discrep_dict[file] = []
+        if file not in hn_gpt4.keys():
+            continue
+        for key in hn_ocr[file].keys():
+            if hn_ocr[file][key].lower() != hn_gpt4[file][key].lower() and key == "name":
+                discrep_dict[file] = [key, hn_ocr[file][key], hn_gpt4[file][key]]
+
 for (i, (file_path, dts)) in enumerate(results.items()):
-    if i < last: continue #739
-    if file_path in seen_files: 
+    if i < last: continue #1121
+    if file_path in seen_files and not HN_MODE: 
         print(f"skipping file {file_path} at index {i}")
         continue   
+    if HN_MODE:
+        if len(discrep_dict[file_path]) <= 0: continue
+        print(f"{discrep_dict[file_path][0]}: got {discrep_dict[file_path][1].lower()} (expected {discrep_dict[file_path][2].lower()})")
     if not CHECKING_MODE:
-        with open('last_det.txt', 'w') as f: f.write(str(i))
+        with open(f"last{'_hn' if HN_MODE else '_det'}.txt", 'w') as f:  f.write(str(i))
+            
     joined_path = os.path.join(card_dir, file_path)
     if not os.path.isfile(joined_path):
         print(f"File {joined_path} does not exist")
@@ -206,5 +233,7 @@ for (i, (file_path, dts)) in enumerate(results.items()):
                 print(f"Marked {file_path} as good")
             img = cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (81, 219, 66), 10)
             cv2.imshow('image', img)
+            if CREATING_SLIDES:
+                break
 
 cv2.destroyAllWindows()

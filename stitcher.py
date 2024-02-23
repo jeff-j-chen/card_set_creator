@@ -3,9 +3,9 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-A_path = '/home/jeff/SSD_2/feb7_2_sample'
+A_path = '/home/jeff/SSD_2/feb11_sample'
 B_path = '/home/jeff/SSD_2/feb7_sample'
-output = '/home/jeff/SSD_2/feb7_vs2'
+output = '/home/jeff/SSD_2/feb7_vs_feb11'
 
 if not os.path.exists(output):
     os.mkdir(output)
