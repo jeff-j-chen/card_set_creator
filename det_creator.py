@@ -1,8 +1,15 @@
+# ADD A WAY TO LOOK THROUGH EVERY CARD THAT HAS IS TALLER THAN IT IS WIDE, THEN HAVE AN OPTION TO ROTATE IT 90
+
+#DBACKS #4 marte -> starling marte
+
+
+
+
 # Use detections from ocrapp as the base annotations, enabling quick labelling for new data
 LOAD_FROM_RESULTS = True
 CHECKING_MODE = False
 CREATING_SLIDES = False
-HN_MODE = True
+HN_MODE = False
 hn_ocr_path = "/home/jeff/SSD_2/1000_sample_ocr/gpt_results.json"
 hn_gpt4_path = "/home/jeff/SSD_2/1000_sample_gpt4/results.json"
 
@@ -95,9 +102,11 @@ cv2.namedWindow('image')
 
 
 if LOAD_FROM_RESULTS:
-    card_dir = "/home/jeff/SSD_2/1000_sample_ocr"
+    # card_dir = "/home/jeff/SSD_2/1000_sample_ocr"
+    card_dir = "/home/jeff/SSD_2/feb11_rec_feb7_det_output"
     with open(os.path.join(card_dir, 'results.json'), 'r') as f:
         results = json.load(f)
+    all_cards = "/home/jeff/SSD_2/Downloads/all_cards/Baseball_data"
 else:
     card_dir = "/home/jeff/SSD_2/Downloads/all_cards/Baseball_data"
     results = {}
@@ -111,6 +120,7 @@ output = []
 if not os.path.exists('last_det.txt'): open('last_det.txt', 'w').write('0')
 with open(f"last{'_hn' if HN_MODE else '_det'}.txt", 'r') as f: 
     last = int(f.read())
+    print(f"Hardnegative mode is {HN_MODE}, last is {last}")
     if CHECKING_MODE: last -= 2
 
 seen_files = []
@@ -140,24 +150,22 @@ if HN_MODE:
                 discrep_dict[file] = [key, hn_ocr[file][key], hn_gpt4[file][key]]
 
 for (i, (file_path, dts)) in enumerate(results.items()):
-    if i < last: continue #1121
-    if file_path in seen_files and not HN_MODE: 
-        print(f"skipping file {file_path} at index {i}")
-        continue   
-    if HN_MODE:
-        if len(discrep_dict[file_path]) <= 0: continue
-        print(f"{discrep_dict[file_path][0]}: got {discrep_dict[file_path][1].lower()} (expected {discrep_dict[file_path][2].lower()})")
-    if not CHECKING_MODE:
-        with open(f"last{'_hn' if HN_MODE else '_det'}.txt", 'w') as f:  f.write(str(i))
-            
-    joined_path = os.path.join(card_dir, file_path)
-    if not os.path.isfile(joined_path):
-        print(f"File {joined_path} does not exist")
+    if file_path != "eb-115044431801_cropped.jpg": 
         continue
-
-    img = cv2.imread(joined_path)
+    # if i < last: continue #1121
+    # if file_path in seen_files and not HN_MODE: 
+    #     print(f"skipping file {file_path} at index {i}")
+    #     continue   
+    # if HN_MODE:
+    #     if len(discrep_dict[file_path]) <= 0: continue
+    #     print(f"{discrep_dict[file_path][0]}: got {discrep_dict[file_path][1].lower()} (expected {discrep_dict[file_path][2].lower()})")
+    # if not CHECKING_MODE:
+    #     with open(f"last{'_hn' if HN_MODE else '_det'}.txt", 'w') as f:  f.write(str(i))
+            
+    img = cv2.imread(os.path.join(card_dir, file_path))
     s = max(img.shape[1]/1600, img.shape[0]/900)
     img = cv2.resize(img, (int(img.shape[1]//s), int(img.shape[0]//s)))
+    print(f"image dim: {img.shape}")
     # for detection in dts:
     #     detection['points'] = [(int(x//s//s//0.9), int(y//s//s//0.9)) for (x, y) in detection['points']]
     

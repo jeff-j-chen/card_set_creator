@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "card_set_creator",
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.analysis.typeCheckingMode": "basic"
+	}
+}
