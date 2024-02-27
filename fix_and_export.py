@@ -83,14 +83,17 @@ class Exporter:
                     crop_file_name = f'{os.path.basename(file_name)[:-4]}_crop{i}.jpg'
                     self.current_crop = crop
 
-                    if crop.shape[0] > crop.shape[1] * 1.25 and 'rotation' not in detection:
-                        self.update_rotation(0)
-                        cv2.setTrackbarPos('angle', 'crop', 0)
-                        while True:
-                            key = cv2.waitKey(1)
-                            if key == ord(' '):
-                                detection['rotation'] = self.rounded_rot
-                                break
+                    if crop.shape[0] > crop.shape[1] * 1.25:
+                        if 'rotation' not in detection:
+                            self.update_rotation(0)
+                            cv2.setTrackbarPos('angle', 'crop', 0)
+                            while True:
+                                key = cv2.waitKey(1)
+                                if key == ord(' '):
+                                    detection['rotation'] = self.rounded_rot
+                                    break
+                        else:
+                            self.update_rotation(detection['rotation'])
                         
                         cv2.imwrite(os.path.join('nitin_crops', crop_file_name), self.rotated_crop)
                     else:
